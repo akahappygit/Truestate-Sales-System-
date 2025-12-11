@@ -11,32 +11,58 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [stats, setStats] = useState(null);
+  const [meta, setMeta] = useState({ regions: [], genders: [], categories: [], paymentMethods: [], tags: [] });
+
+  const [filters, setFilters] = useState({
+    region: '',
+    gender: '',
+    ageMin: '',
+    ageMax: '',
+    category: '',
+    tags: '',
+    paymentMethod: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'CustomerName',
+    sortDir: 'asc',
+  });
+
   const perPage = 10;
 
   useEffect(() => {
     fetchTransactions();
-  }, [page, search]);
+  }, [page, search, filters]);
 
   useEffect(() => {
     fetchStatistics();
+    fetchMeta();
   }, []);
+
+  const buildQuery = () => {
+    const params = new URLSearchParams();
+    params.set('page', page);
+    params.set('perPage', perPage);
+    if (search) params.set('search', search);
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== '' && v !== null && v !== undefined) params.set(k, v);
+    });
+    return params.toString();
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/transactions?page=${page}&perPage=${perPage}&search=${search}`
-      );
+      const response = await fetch(`${API_BASE_URL}/transactions?${buildQuery()}`);
       const data = await response.json();
       if (data.success) {
         setTransactions(data.data || []);
         setTotalCount(data.count || 0);
       } else {
-        setError("Failed to load transactions.");
+        setError('Failed to load transactions.');
       }
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error('Fetch error:', err);
       setError("Error: Backend is not running! Make sure 'npm start' is running in the backend folder.");
     } finally {
       setLoading(false);
@@ -51,7 +77,17 @@ function App() {
         setStats(data.data);
       }
     } catch (err) {
-      console.error("Stats fetch error:", err);
+      console.error('Stats fetch error:', err);
+    }
+  };
+
+  const fetchMeta = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/transactions/meta`);
+      const json = await res.json();
+      if (json.success) setMeta(json.data);
+    } catch (err) {
+      console.error('Meta fetch error:', err);
     }
   };
 
@@ -63,33 +99,62 @@ function App() {
         {/* Header */}
         <header className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h1 className="text-3xl font-bold text-gray-800">TruEstate Sales Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Sales Management System</h1>
             <div className="flex items-center gap-4">
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search by Customer or Product..."
+                  placeholder="Search by Name, Phone or Product"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full md:w-80 px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="w-full md:w-96 px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 />
-                <svg
-                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
+                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
+            </div>
+          </div>
+          {/* Filters bar */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <select className="px-3 py-2 border rounded-lg" value={filters.region} onChange={(e)=>{setFilters(f=>({...f,region:e.target.value})); setPage(1);}}>
+              <option value="">Customer Region</option>
+              {meta.regions.map(r=> (<option key={r} value={r}>{r}</option>))}
+            </select>
+            <select className="px-3 py-2 border rounded-lg" value={filters.gender} onChange={(e)=>{setFilters(f=>({...f,gender:e.target.value})); setPage(1);}}>
+              <option value="">Gender</option>
+              {meta.genders.map(g=> (<option key={g} value={g}>{g}</option>))}
+            </select>
+            <div className="flex gap-2">
+              <input type="number" placeholder="Age min" className="px-3 py-2 border rounded-lg w-1/2" value={filters.ageMin} onChange={(e)=>{setFilters(f=>({...f,ageMin:e.target.value})); setPage(1);}}/>
+              <input type="number" placeholder="Age max" className="px-3 py-2 border rounded-lg w-1/2" value={filters.ageMax} onChange={(e)=>{setFilters(f=>({...f,ageMax:e.target.value})); setPage(1);}}/>
+            </div>
+            <select className="px-3 py-2 border rounded-lg" value={filters.category} onChange={(e)=>{setFilters(f=>({...f,category:e.target.value})); setPage(1);}}>
+              <option value="">Product Category</option>
+              {meta.categories.map(c=> (<option key={c} value={c}>{c}</option>))}
+            </select>
+            <input type="text" placeholder="Tags (comma separated)" className="px-3 py-2 border rounded-lg" value={filters.tags} onChange={(e)=>{setFilters(f=>({...f,tags:e.target.value})); setPage(1);}}/>
+            <select className="px-3 py-2 border rounded-lg" value={filters.paymentMethod} onChange={(e)=>{setFilters(f=>({...f,paymentMethod:e.target.value})); setPage(1);}}>
+              <option value="">Payment Method</option>
+              {meta.paymentMethods.map(p=> (<option key={p} value={p}>{p}</option>))}
+            </select>
+            <input type="date" className="px-3 py-2 border rounded-lg" value={filters.dateFrom} onChange={(e)=>{setFilters(f=>({...f,dateFrom:e.target.value})); setPage(1);}}/>
+            <input type="date" className="px-3 py-2 border rounded-lg" value={filters.dateTo} onChange={(e)=>{setFilters(f=>({...f,dateTo:e.target.value})); setPage(1);}}/>
+            <div className="flex gap-2">
+              <select className="px-3 py-2 border rounded-lg" value={filters.sortBy} onChange={(e)=>setFilters(f=>({...f,sortBy:e.target.value}))}>
+                <option value="CustomerName">Sort by: Customer Name</option>
+                <option value="Date">Sort by: Date</option>
+                <option value="TotalAmount">Sort by: Total Amount</option>
+                <option value="Quantity">Sort by: Quantity</option>
+                <option value="CustomerRegion">Sort by: Region</option>
+              </select>
+              <select className="px-3 py-2 border rounded-lg" value={filters.sortDir} onChange={(e)=>setFilters(f=>({...f,sortDir:e.target.value}))}>
+                <option value="asc">Asc</option>
+                <option value="desc">Desc</option>
+              </select>
             </div>
           </div>
         </header>
@@ -148,74 +213,40 @@ function App() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Transaction ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Region
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer region</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee name</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.length > 0 ? (
                     transactions.map((t) => (
                       <tr key={t._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {t.TransactionID}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{t.TransactionID}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(t.Date).toLocaleDateString('en-IN', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                          {new Date(t.Date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {t.CustomerName}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {t.ProductName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {t.Quantity || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          ₹{t.TotalAmount?.toLocaleString('en-IN') || '0'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {t.CustomerRegion}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              t.OrderStatus === 'Delivered'
-                                ? 'bg-green-100 text-green-800'
-                                : t.OrderStatus === 'Cancelled'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {t.OrderStatus || 'Pending'}
-                          </span>
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{t.CustomerID}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{t.CustomerName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.PhoneNumber}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.Gender}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.Age}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.ProductCategory}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.Quantity || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₹{t.TotalAmount?.toLocaleString('en-IN') || '0'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.CustomerRegion}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.ProductID}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.EmployeeName}</td>
                       </tr>
                     ))
                   ) : (
@@ -247,9 +278,15 @@ function App() {
               >
                 Previous
               </button>
-              <span className="px-4 py-2 text-sm font-medium text-gray-700">
-                Page {page} of {totalPages}
-              </span>
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPage(i + 1)}
+                  className={`px-3 py-2 text-sm rounded-lg border ${page === i + 1 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                >
+                  {i + 1}
+                </button>
+              ))}
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page >= totalPages}
