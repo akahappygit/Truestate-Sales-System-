@@ -1,16 +1,23 @@
-# React + Vite
+# Frontend (React + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sales dashboard UI aligned with the provided Figma references.
 
-Currently, two official plugins are available:
+## Features
+- Search by name, phone, or product
+- Filters: region, gender, age range, category, tags, payment method, date range
+- Sorting on key fields (name, date, total amount, quantity, region)
+- Stats cards (total transactions, revenue, items, average order value)
+- Paginated table with numbered page chips
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Development
+1. `npm install`
+2. Ensure the backend is running at `http://localhost:5000`.
+3. `npm run dev` and open the printed local URL.
 
-## React Compiler
+## Configuration
+- API base is set in `src/App.jsx` to `http://localhost:5000/api`.
+- Tailwind configuration in `tailwind.config.js`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Production Build
+- `npm run build`
+- Optional: `npm run preview`
