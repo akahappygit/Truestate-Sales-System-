@@ -1,6 +1,5 @@
 const Transaction = require('../models/Transaction');
 
-// 1. Get All Transactions (with Pagination & Search)
 exports.getAllTransactions = async (req, res) => {
     try {
         const {
@@ -34,11 +33,13 @@ exports.getAllTransactions = async (req, res) => {
             ]});
         }
 
-        const eq = (v) => ({ $regex: `^\\s*${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, $options: 'i' });
-        if (region) and.push({ $or: [{ CustomerRegion: eq(region) }, { ['Customer Region']: eq(region) }]});
-        if (gender) and.push({ Gender: eq(gender) });
-        if (paymentMethod) and.push({ $or: [{ PaymentMethod: eq(paymentMethod) }, { ['Payment Method']: eq(paymentMethod) }]});
-        if (category) and.push({ $or: [{ ProductCategory: eq(category) }, { ['Product Category']: eq(category) }]});
+        const toList = (v) => Array.isArray(v) ? v : String(v || '').split(',').map(s=>s.trim()).filter(Boolean);
+        const eq = (v) => ({ $regex: `^\s*${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\$&')}\s*$`, $options: 'i' });
+        const eqList = (arr) => ({ $in: toList(arr).map(eq) });
+        if (region) and.push({ $or: [{ CustomerRegion: eqList(region) }, { ['Customer Region']: eqList(region) }]});
+        if (gender) and.push({ Gender: eqList(gender) });
+        if (paymentMethod) and.push({ $or: [{ PaymentMethod: eqList(paymentMethod) }, { ['Payment Method']: eqList(paymentMethod) }]});
+        if (category) and.push({ $or: [{ ProductCategory: eqList(category) }, { ['Product Category']: eqList(category) }]});
 
         if (ageMin || ageMax) {
             const ageQuery = {};
@@ -68,14 +69,7 @@ exports.getAllTransactions = async (req, res) => {
 
         const sort = {};
         const dir = String(sortDir).toLowerCase() === 'asc' ? 1 : -1;
-        const sortMap = {
-            Date: 'Date',
-            CustomerName: 'Customer Name',
-            ProductName: 'Product Name',
-            TotalAmount: 'Total Amount',
-            Quantity: 'Quantity',
-            CustomerRegion: 'Customer Region',
-        };
+        const sortMap = { Date: 'Date', CustomerName: 'Customer Name', ProductName: 'Product Name', TotalAmount: 'Total Amount', Quantity: 'Quantity', CustomerRegion: 'Customer Region' };
         sort[sortMap[sortBy] || 'Date'] = dir;
 
         const pg = parseInt(page);
@@ -100,7 +94,6 @@ exports.getAllTransactions = async (req, res) => {
     }
 };
 
-// 2. Get Statistics (Total Sale, Sold Items, etc.)
 exports.getStatistics = async (req, res) => {
     try {
         const totalTransactions = await Transaction.countDocuments();
