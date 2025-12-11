@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 
 // Import Routes
 const transactionRoutes = require('./src/routes/transactions'); 
+const { getMeta } = require('./src/controllers/transactionController');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -21,6 +22,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 app.use('/api/transactions', transactionRoutes);
+app.get('/api/transactions/meta', getMeta);
 
 app.get('/', (_req, res) => {
   res.json({ message: 'API is running!' });
@@ -35,6 +37,7 @@ async function start() {
       console.log(`📡 API Endpoints:`);
       console.log(`   GET http://localhost:${port}/api/transactions`);
       console.log(`   GET http://localhost:${port}/api/transactions/stats`);
+      console.log(`   GET http://localhost:${port}/api/transactions/meta`);
     });
   } catch (err) {
     console.error('❌ Connection Error:', err.message);
