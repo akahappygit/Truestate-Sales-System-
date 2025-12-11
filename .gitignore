@@ -6,3 +6,9 @@ dist
 **/dist
 .vite
 
+# Large dataset files
+*.csv
+**/*.csv
+truestate_assignment_dataset.csv
+backend/truestate_assignment_dataset.csv
+
