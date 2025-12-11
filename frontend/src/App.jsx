@@ -387,17 +387,17 @@ function App() {
                   {transactions.length > 0 ? (
                     transactions.map((t) => (
                       <tr key={t._id} className="hover:bg-blue-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{t.TransactionID}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{t['Transaction ID'] || t.TransactionID}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {new Date(t.Date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{t.CustomerName}</div>
-                          <div className="text-xs text-gray-500">{t.PhoneNumber}</div>
+                          <div className="text-sm font-medium text-gray-900">{t['Customer Name'] || t.CustomerName}</div>
+                          <div className="text-xs text-gray-500">{t['Phone Number'] || t.PhoneNumber}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getRegionColor(t.CustomerRegion)}`}>
-                            {t.CustomerRegion}
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getRegionColor(t['Customer Region'] || t.CustomerRegion)}`}>
+                            {t['Customer Region'] || t.CustomerRegion}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -407,29 +407,29 @@ function App() {
                             {t.Gender}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{t.ProductName}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{t['Product Name'] || t.ProductName}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 rounded-full">
-                            {t.ProductCategory}
+                            {t['Product Category'] || t.ProductCategory}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{t.Quantity || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{t['Quantity'] || t.Quantity || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          ₹{t.TotalAmount?.toLocaleString('en-IN') || '0'}
+                          ₹{(t['Total Amount'] || t.TotalAmount)?.toLocaleString?.('en-IN') ?? (t['Total Amount'] || t.TotalAmount || '0')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1">
-                            <span>{getPaymentMethodIcon(t.PaymentMethod)}</span>
-                            <span className="text-sm text-gray-700">{t.PaymentMethod}</span>
+                            <span>{getPaymentMethodIcon(t['Payment Method'] || t.PaymentMethod)}</span>
+                            <span className="text-sm text-gray-700">{t['Payment Method'] || t.PaymentMethod}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            t.OrderStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
-                            t.OrderStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                            (t['Order Status'] || t.OrderStatus) === 'Delivered' ? 'bg-green-100 text-green-800' :
+                            (t['Order Status'] || t.OrderStatus) === 'Cancelled' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {t.OrderStatus || 'Pending'}
+                            {t['Order Status'] || t.OrderStatus || 'Pending'}
                           </span>
                         </td>
                       </tr>

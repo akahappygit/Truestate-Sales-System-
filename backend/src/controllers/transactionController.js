@@ -34,10 +34,11 @@ exports.getAllTransactions = async (req, res) => {
             ]});
         }
 
-        if (region) and.push({ $or: [{ CustomerRegion: region }, { ['Customer Region']: region }]});
-        if (gender) and.push({ Gender: gender });
-        if (paymentMethod) and.push({ $or: [{ PaymentMethod: paymentMethod }, { ['Payment Method']: paymentMethod }]});
-        if (category) and.push({ $or: [{ ProductCategory: category }, { ['Product Category']: category }]});
+        const eq = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
+        if (region) and.push({ $or: [{ CustomerRegion: eq(region) }, { ['Customer Region']: eq(region) }]});
+        if (gender) and.push({ Gender: eq(gender) });
+        if (paymentMethod) and.push({ $or: [{ PaymentMethod: eq(paymentMethod) }, { ['Payment Method']: eq(paymentMethod) }]});
+        if (category) and.push({ $or: [{ ProductCategory: eq(category) }, { ['Product Category']: eq(category) }]});
 
         if (ageMin || ageMax) {
             const ageQuery = {};
@@ -75,16 +76,13 @@ exports.getAllTransactions = async (req, res) => {
             Quantity: 'Quantity',
             CustomerRegion: 'Customer Region',
         };
-        const sortField = sortMap[sortBy] || 'Date';
-        sort[sortField] = dir;
+        sort[sortMap[sortBy] || 'Date'] = dir;
 
         const pg = parseInt(page);
         const limit = parseInt(perPage);
-
         const finalQuery = and.length ? { $and: and } : query;
         const coll = Transaction.collection;
         const cursor = coll.find(finalQuery).sort(sort).skip((pg - 1) * limit).limit(limit);
-        console.log('transactions.query', JSON.stringify(finalQuery));
         const [transactions, total] = await Promise.all([
             cursor.toArray(),
             coll.countDocuments(finalQuery)
@@ -145,7 +143,7 @@ exports.getMeta = async (req, res) => {
             genders,
             categoriesA, categoriesB,
             paymentA, paymentB,
-            tagsA, tagsB
+            tagsA
         ] = await Promise.all([
             coll.distinct('CustomerRegion'),
             coll.distinct('Customer Region'),
@@ -154,7 +152,6 @@ exports.getMeta = async (req, res) => {
             coll.distinct('Product Category'),
             coll.distinct('PaymentMethod'),
             coll.distinct('Payment Method'),
-            coll.distinct('Tags'),
             coll.distinct('Tags')
         ]);
 
