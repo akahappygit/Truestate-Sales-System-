@@ -82,9 +82,11 @@ exports.getAllTransactions = async (req, res) => {
         const limit = parseInt(perPage);
 
         const finalQuery = and.length ? { $and: and } : query;
+        const coll = Transaction.collection;
+        const cursor = coll.find(finalQuery).sort(sort).skip((pg - 1) * limit).limit(limit);
         const [transactions, total] = await Promise.all([
-            Transaction.find(finalQuery).sort(sort).skip((pg - 1) * limit).limit(limit),
-            Transaction.countDocuments(finalQuery)
+            cursor.toArray(),
+            coll.countDocuments(finalQuery)
         ]);
 
         res.status(200).json({
@@ -136,6 +138,7 @@ exports.getStatistics = async (req, res) => {
 
 exports.getMeta = async (req, res) => {
     try {
+        const coll = Transaction.collection;
         const [
             regionsA, regionsB,
             genders,
@@ -143,15 +146,15 @@ exports.getMeta = async (req, res) => {
             paymentA, paymentB,
             tagsA, tagsB
         ] = await Promise.all([
-            Transaction.distinct('CustomerRegion'),
-            Transaction.distinct('Customer Region'),
-            Transaction.distinct('Gender'),
-            Transaction.distinct('ProductCategory'),
-            Transaction.distinct('Product Category'),
-            Transaction.distinct('PaymentMethod'),
-            Transaction.distinct('Payment Method'),
-            Transaction.distinct('Tags'),
-            Transaction.distinct('Tags')
+            coll.distinct('CustomerRegion'),
+            coll.distinct('Customer Region'),
+            coll.distinct('Gender'),
+            coll.distinct('ProductCategory'),
+            coll.distinct('Product Category'),
+            coll.distinct('PaymentMethod'),
+            coll.distinct('Payment Method'),
+            coll.distinct('Tags'),
+            coll.distinct('Tags')
         ]);
 
         const uniq = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
