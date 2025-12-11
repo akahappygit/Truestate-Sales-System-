@@ -34,7 +34,7 @@ exports.getAllTransactions = async (req, res) => {
             ]});
         }
 
-        const eq = (v) => ({ $regex: `^${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' });
+        const eq = (v) => ({ $regex: `^\\s*${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, $options: 'i' });
         if (region) and.push({ $or: [{ CustomerRegion: eq(region) }, { ['Customer Region']: eq(region) }]});
         if (gender) and.push({ Gender: eq(gender) });
         if (paymentMethod) and.push({ $or: [{ PaymentMethod: eq(paymentMethod) }, { ['Payment Method']: eq(paymentMethod) }]});
@@ -82,6 +82,7 @@ exports.getAllTransactions = async (req, res) => {
         const limit = parseInt(perPage);
         const finalQuery = and.length ? { $and: and } : query;
         const coll = Transaction.collection;
+        console.log('transactions.query', JSON.stringify(finalQuery));
         const cursor = coll.find(finalQuery).sort(sort).skip((pg - 1) * limit).limit(limit);
         const [transactions, total] = await Promise.all([
             cursor.toArray(),
