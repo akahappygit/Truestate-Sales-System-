@@ -27,39 +27,56 @@ exports.getAllTransactions = async (req, res) => {
                 { CustomerName: { $regex: search, $options: 'i' } },
                 { PhoneNumber: { $regex: search, $options: 'i' } },
                 { ProductName: { $regex: search, $options: 'i' } },
+                { ['Customer Name']: { $regex: search, $options: 'i' } },
+                { ['Phone Number']: { $regex: search, $options: 'i' } },
+                { ['Product Name']: { $regex: search, $options: 'i' } },
             ];
         }
 
-        if (region) query.CustomerRegion = region;
-        if (gender) query.Gender = gender;
-        if (paymentMethod) query.PaymentMethod = paymentMethod;
-        if (category) query.ProductCategory = category;
+        if (region) query.$or = [...(query.$or || []), { CustomerRegion: region }, { ['Customer Region']: region }];
+        if (gender) query.$or = [...(query.$or || []), { Gender: gender }];
+        if (paymentMethod) query.$or = [...(query.$or || []), { PaymentMethod: paymentMethod }, { ['Payment Method']: paymentMethod }];
+        if (category) query.$or = [...(query.$or || []), { ProductCategory: category }, { ['Product Category']: category }];
 
         if (ageMin || ageMax) {
-            query.Age = {};
-            if (ageMin) query.Age.$gte = parseInt(ageMin);
-            if (ageMax) query.Age.$lte = parseInt(ageMax);
+            const ageQuery = {};
+            if (ageMin) ageQuery.$gte = parseInt(ageMin);
+            if (ageMax) ageQuery.$lte = parseInt(ageMax);
+            query.$or = [...(query.$or || []), { Age: ageQuery }];
         }
 
         if (tags) {
             const tagList = Array.isArray(tags)
                 ? tags
                 : String(tags).split(',').map(t => t.trim()).filter(Boolean);
-            if (tagList.length) query.Tags = { $in: tagList };
+            if (tagList.length) {
+                query.$or = [
+                    ...(query.$or || []),
+                    { Tags: { $in: tagList } },
+                    { ['Tags']: { $regex: tagList.join('|'), $options: 'i' } }
+                ];
+            }
         }
 
         if (dateFrom || dateTo) {
-            query.Date = {};
-            if (dateFrom) query.Date.$gte = new Date(dateFrom);
-            if (dateTo) query.Date.$lte = new Date(dateTo);
+            const dateRange = {};
+            if (dateFrom) dateRange.$gte = new Date(dateFrom);
+            if (dateTo) dateRange.$lte = new Date(dateTo);
+            query.$or = [...(query.$or || []), { Date: dateRange }];
         }
 
         const sort = {};
         const dir = String(sortDir).toLowerCase() === 'asc' ? 1 : -1;
-        const allowedSort = new Set([
-            'Date', 'CustomerName', 'ProductName', 'TotalAmount', 'Quantity', 'CustomerRegion'
-        ]);
-        sort[allowedSort.has(sortBy) ? sortBy : 'Date'] = dir;
+        const sortMap = {
+            Date: 'Date',
+            CustomerName: 'Customer Name',
+            ProductName: 'Product Name',
+            TotalAmount: 'Total Amount',
+            Quantity: 'Quantity',
+            CustomerRegion: 'Customer Region',
+        };
+        const sortField = sortMap[sortBy] || 'Date';
+        sort[sortField] = dir;
 
         const pg = parseInt(page);
         const limit = parseInt(perPage);
@@ -118,17 +135,33 @@ exports.getStatistics = async (req, res) => {
 
 exports.getMeta = async (req, res) => {
     try {
-        const [regions, genders, categories, paymentMethods, tags] = await Promise.all([
+        const [
+            regionsA, regionsB,
+            genders,
+            categoriesA, categoriesB,
+            paymentA, paymentB,
+            tagsA, tagsB
+        ] = await Promise.all([
             Transaction.distinct('CustomerRegion'),
+            Transaction.distinct('Customer Region'),
             Transaction.distinct('Gender'),
             Transaction.distinct('ProductCategory'),
+            Transaction.distinct('Product Category'),
             Transaction.distinct('PaymentMethod'),
+            Transaction.distinct('Payment Method'),
             Transaction.distinct('Tags'),
+            Transaction.distinct('Tags')
         ]);
+
+        const uniq = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
+        const regions = uniq([...(regionsA||[]), ...(regionsB||[])]);
+        const categories = uniq([...(categoriesA||[]), ...(categoriesB||[])]);
+        const paymentMethods = uniq([...(paymentA||[]), ...(paymentB||[])]);
+        const tags = uniq([...(tagsA||[])].flatMap(v => Array.isArray(v) ? v : String(v).split(',').map(t=>t.trim())));
 
         res.status(200).json({
             success: true,
-            data: { regions, genders, categories, paymentMethods, tags }
+            data: { regions, genders: uniq(genders), categories, paymentMethods, tags }
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
