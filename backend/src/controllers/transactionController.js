@@ -33,9 +33,35 @@ exports.getAllTransactions = async (req, res) => {
 // 2. Get Statistics (Total Sale, Sold Items, etc.)
 exports.getStatistics = async (req, res) => {
     try {
-        // We will build this later for the Dashboard charts!
-        res.json({ message: "Stats coming soon" });
+        const totalTransactions = await Transaction.countDocuments();
+        
+        const revenueStats = await Transaction.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: '$TotalAmount' },
+                    totalItems: { $sum: '$Quantity' },
+                    avgOrderValue: { $avg: '$TotalAmount' }
+                }
+            }
+        ]);
+
+        const stats = revenueStats[0] || {
+            totalRevenue: 0,
+            totalItems: 0,
+            avgOrderValue: 0
+        };
+
+        res.status(200).json({
+            success: true,
+            data: {
+                totalTransactions,
+                totalRevenue: stats.totalRevenue || 0,
+                totalItems: stats.totalItems || 0,
+                avgOrderValue: stats.avgOrderValue || 0
+            }
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 };
