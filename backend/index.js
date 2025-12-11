@@ -6,7 +6,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 
 // Import Routes
-const transactionRoutes = require('./src/routes/transactions'); 
+const transactionRoutes = require('./src/routes/transactions');
 const { getMeta } = require('./src/controllers/transactionController');
 
 const app = express();
@@ -23,6 +23,7 @@ app.use(express.json());
 
 app.use('/api/transactions', transactionRoutes);
 app.get('/api/transactions/meta', getMeta);
+app.get('/api/meta', getMeta);
 
 app.get('/', (_req, res) => {
   res.json({ message: 'API is running!' });
@@ -38,6 +39,7 @@ async function start() {
       console.log(`   GET http://localhost:${port}/api/transactions`);
       console.log(`   GET http://localhost:${port}/api/transactions/stats`);
       console.log(`   GET http://localhost:${port}/api/transactions/meta`);
+      console.log(`   GET http://localhost:${port}/api/meta`);
     });
   } catch (err) {
     console.error('❌ Connection Error:', err.message);
