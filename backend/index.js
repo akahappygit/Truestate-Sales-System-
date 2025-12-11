@@ -32,10 +32,30 @@ async function start() {
     console.log('✅ MongoDB Connected');
     app.listen(port, () => {
       console.log(`🚀 Server listening on http://localhost:${port}`);
+      console.log(`📡 API Endpoints:`);
+      console.log(`   GET http://localhost:${port}/api/transactions`);
+      console.log(`   GET http://localhost:${port}/api/transactions/stats`);
     });
   } catch (err) {
-    console.error('❌ Connection Error:', err);
+    console.error('❌ Connection Error:', err.message);
+    console.error('💡 Make sure:');
+    console.error('   1. MongoDB URI is correct in .env file');
+    console.error('   2. MongoDB cluster is accessible');
+    console.error('   3. Network connection is active');
+    process.exit(1);
   }
 }
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
 
 start();
