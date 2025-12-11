@@ -84,6 +84,7 @@ exports.getAllTransactions = async (req, res) => {
         const finalQuery = and.length ? { $and: and } : query;
         const coll = Transaction.collection;
         const cursor = coll.find(finalQuery).sort(sort).skip((pg - 1) * limit).limit(limit);
+        console.log('transactions.query', JSON.stringify(finalQuery));
         const [transactions, total] = await Promise.all([
             cursor.toArray(),
             coll.countDocuments(finalQuery)
