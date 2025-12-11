@@ -5,43 +5,38 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 
-const MONGO_URI = process.env.MONGO_URI;
+// Import Routes
+const transactionRoutes = require('./src/routes/transactions'); 
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 5000;
 
-app.use(cors());
+// YOUR DATABASE LINK
+const MONGO_URI = "mongodb+srv://kumarayushanand2003:Ayush2003@cluster0.ofklt18.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+// --- FIX 1: Allow ALL origins explicitly ---
+app.use(cors({ origin: "*" })); 
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 
-app.get('/', (_req, res) => {
-  res.json({ message: 'TruEstate Sales System API is running' });
-});
+app.use('/api/transactions', transactionRoutes);
 
-app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal Server Error' });
+app.get('/', (_req, res) => {
+  res.json({ message: 'API is running!' });
 });
 
 async function start() {
-  if (!MONGO_URI) {
-    console.error('MONGO_URI is not defined');
-    process.exit(1);
-  }
-
   try {
     await mongoose.connect(MONGO_URI);
-    console.log('MongoDB Connected');
-
-    app.listen(port, () => {
-      console.log(`Server listening on port ${port}`);
+    console.log('✅ MongoDB Connected');
+    // --- FIX 2: Listen specifically on 0.0.0.0 (IPv4) ---
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Server listening on port ${port}`);
     });
   } catch (err) {
-    console.error('Failed to connect to MongoDB', err);
-    process.exit(1);
+    console.error('❌ Connection Error:', err);
   }
 }
 
 start();
-
