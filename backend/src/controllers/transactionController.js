@@ -21,28 +21,29 @@ exports.getAllTransactions = async (req, res) => {
         } = req.query;
 
         const query = {};
+        const and = [];
 
         if (search) {
-            query.$or = [
+            and.push({ $or: [
                 { CustomerName: { $regex: search, $options: 'i' } },
                 { PhoneNumber: { $regex: search, $options: 'i' } },
                 { ProductName: { $regex: search, $options: 'i' } },
                 { ['Customer Name']: { $regex: search, $options: 'i' } },
                 { ['Phone Number']: { $regex: search, $options: 'i' } },
                 { ['Product Name']: { $regex: search, $options: 'i' } },
-            ];
+            ]});
         }
 
-        if (region) query.$or = [...(query.$or || []), { CustomerRegion: region }, { ['Customer Region']: region }];
-        if (gender) query.$or = [...(query.$or || []), { Gender: gender }];
-        if (paymentMethod) query.$or = [...(query.$or || []), { PaymentMethod: paymentMethod }, { ['Payment Method']: paymentMethod }];
-        if (category) query.$or = [...(query.$or || []), { ProductCategory: category }, { ['Product Category']: category }];
+        if (region) and.push({ $or: [{ CustomerRegion: region }, { ['Customer Region']: region }]});
+        if (gender) and.push({ Gender: gender });
+        if (paymentMethod) and.push({ $or: [{ PaymentMethod: paymentMethod }, { ['Payment Method']: paymentMethod }]});
+        if (category) and.push({ $or: [{ ProductCategory: category }, { ['Product Category']: category }]});
 
         if (ageMin || ageMax) {
             const ageQuery = {};
             if (ageMin) ageQuery.$gte = parseInt(ageMin);
             if (ageMax) ageQuery.$lte = parseInt(ageMax);
-            query.$or = [...(query.$or || []), { Age: ageQuery }];
+            and.push({ Age: ageQuery });
         }
 
         if (tags) {
@@ -50,11 +51,10 @@ exports.getAllTransactions = async (req, res) => {
                 ? tags
                 : String(tags).split(',').map(t => t.trim()).filter(Boolean);
             if (tagList.length) {
-                query.$or = [
-                    ...(query.$or || []),
+                and.push({ $or: [
                     { Tags: { $in: tagList } },
                     { ['Tags']: { $regex: tagList.join('|'), $options: 'i' } }
-                ];
+                ]});
             }
         }
 
@@ -62,7 +62,7 @@ exports.getAllTransactions = async (req, res) => {
             const dateRange = {};
             if (dateFrom) dateRange.$gte = new Date(dateFrom);
             if (dateTo) dateRange.$lte = new Date(dateTo);
-            query.$or = [...(query.$or || []), { Date: dateRange }];
+            and.push({ Date: dateRange });
         }
 
         const sort = {};
@@ -81,9 +81,10 @@ exports.getAllTransactions = async (req, res) => {
         const pg = parseInt(page);
         const limit = parseInt(perPage);
 
+        const finalQuery = and.length ? { $and: and } : query;
         const [transactions, total] = await Promise.all([
-            Transaction.find(query).sort(sort).skip((pg - 1) * limit).limit(limit),
-            Transaction.countDocuments(query)
+            Transaction.find(finalQuery).sort(sort).skip((pg - 1) * limit).limit(limit),
+            Transaction.countDocuments(finalQuery)
         ]);
 
         res.status(200).json({
