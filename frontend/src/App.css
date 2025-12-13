@@ -5,6 +5,9 @@
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; align-items: center; }
 .filters > * { min-width: 0; }
 .filters select, .filters input { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+.range-date { display: grid; grid-template-columns: 120px 1fr 1fr; gap: 8px; align-items: center; }
+.dd-label { display: inline-block; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #6b7280; }
+.clear-btn { justify-self: end; }
 .ms { position: relative; }
 .ms-trigger { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; text-align: left; color: #374151; }
 .ms-menu { position: absolute; z-index: 20; top: 42px; left: 0; right: 0; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }

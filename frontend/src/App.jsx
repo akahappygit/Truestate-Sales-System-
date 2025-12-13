@@ -42,8 +42,8 @@ function App() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
-  const [sortBy, setSortBy] = useState('CustomerName');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortBy, setSortBy] = useState('Date');
+  const [sortDir, setSortDir] = useState('desc');
 
   const [region, setRegion] = useState([]);
   const [gender, setGender] = useState([]);
@@ -137,11 +137,12 @@ function App() {
         <MultiSelect label="Product Category" options={meta.categories} selected={category} onChange={setCategory} />
         <MultiSelect label="Tags" options={meta.tags} selected={tags} onChange={setTags} />
         <MultiSelect label="Payment Method" options={meta.paymentMethods} selected={paymentMethod} onChange={setPaymentMethod} />
-        <div className="range">
+        <div className="range range-date">
+          <span className="dd-label">dd-mm-yyyy</span>
           <input type="date" value={dateFrom} onChange={(e)=>{ setDateFrom(e.target.value); setPage(1); }} />
           <input type="date" value={dateTo} onChange={(e)=>{ setDateTo(e.target.value); setPage(1); }} />
         </div>
-        <button className="btn" type="button" onClick={()=>{ setRegion([]); setGender([]); setCategory([]); setTags([]); setPaymentMethod([]); setAgeMin(''); setAgeMax(''); setDateFrom(''); setDateTo(''); setPage(1); }}>Clear filters</button>
+        <button className="btn clear-btn" type="button" onClick={()=>{ setRegion([]); setGender([]); setCategory([]); setTags([]); setPaymentMethod([]); setAgeMin(''); setAgeMax(''); setDateFrom(''); setDateTo(''); setPage(1); }}>Clear filters</button>
         <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
           <option value="CustomerName">Sort by: Customer Name (A–Z)</option>
           <option value="Date">Sort by: Date</option>
