@@ -45,17 +45,12 @@ exports.getAllTransactions = async (req, res) => {
         const r3 = orEq(['Payment Method','PaymentMethod'], paymentMethod); if (r3) and.push(r3);
         const r4 = orEq(['Product Category','ProductCategory'], category); if (r4) and.push(r4);
 
-        if (ageMin || ageMax) {
-            const min = ageMin ? parseInt(ageMin) : 0;
-            const max = ageMax ? parseInt(ageMax) : 200;
-            const inVals = [];
-            for (let i = min; i <= max; i++) {
-                inVals.push(i);
-                inVals.push(String(i));
-                inVals.push(new RegExp(`^\\s*${i}\\s*$`, 'i'));
-            }
-            and.push({ Age: { $in: inVals } });
-        }
+        const hasAge = typeof ageMin !== 'undefined' || typeof ageMax !== 'undefined';
+        const ageMinNum = ageMin !== undefined && ageMin !== '' ? parseInt(ageMin) : undefined;
+        const ageMaxNum = ageMax !== undefined && ageMax !== '' ? parseInt(ageMax) : undefined;
+        const exactAge = (ageMinNum !== undefined && ageMaxNum === undefined) ? ageMinNum
+                         : (ageMaxNum !== undefined && ageMinNum === undefined) ? ageMaxNum
+                         : undefined;
 
         if (tags) {
             const tagList = toList(tags);
@@ -68,10 +63,15 @@ exports.getAllTransactions = async (req, res) => {
         }
 
         if (dateFrom || dateTo) {
-            const dateRange = {};
-            if (dateFrom) dateRange.$gte = new Date(dateFrom);
-            if (dateTo) dateRange.$lte = new Date(dateTo);
-            and.push({ Date: dateRange });
+            const expr = [];
+            const field = { $cond: [
+                { $eq: [ { $type: '$Date' }, 'string' ] },
+                { $dateFromString: { dateString: '$Date' } },
+                '$Date'
+            ] };
+            if (dateFrom) expr.push({ $gte: [ field, new Date(dateFrom) ] });
+            if (dateTo) expr.push({ $lte: [ field, new Date(dateTo) ] });
+            if (expr.length) and.push({ $expr: { $and: expr } });
         }
 
         const dir = String(sortDir).toLowerCase() === 'asc' ? 1 : -1;
@@ -80,13 +80,33 @@ exports.getAllTransactions = async (req, res) => {
 
         const pg = parseInt(page);
         const limit = parseInt(perPage);
-        const finalQuery = and.length ? { $and: and } : {};
+        const baseMatch = and.length ? { $and: and } : {};
         const coll = Transaction.collection;
-        const cursor = coll.find(finalQuery).sort({ [sortField]: dir }).skip((pg - 1) * limit).limit(limit);
-        const [transactions, total] = await Promise.all([
-            cursor.toArray(),
-            coll.countDocuments(finalQuery)
+
+        const pipeline = [];
+        if (Object.keys(baseMatch).length) pipeline.push({ $match: baseMatch });
+        if (hasAge) {
+            pipeline.push({ $addFields: { AgeNum: { $toInt: { $trim: { input: { $ifNull: ['$Age', ''] }, chars: ' ' } } } } });
+            const ageCond = exactAge !== undefined
+                ? { AgeNum: exactAge }
+                : { AgeNum: {
+                        ...(ageMinNum !== undefined ? { $gte: ageMinNum } : {}),
+                        ...(ageMaxNum !== undefined ? { $lte: ageMaxNum } : {}),
+                    }
+                  };
+            pipeline.push({ $match: ageCond });
+        }
+        pipeline.push({ $sort: { [sortField]: dir } });
+        pipeline.push({ $skip: (pg - 1) * limit });
+        pipeline.push({ $limit: limit });
+
+        const countPipeline = pipeline.filter(s => !('$skip' in s) && !('$limit' in s) && !('$sort' in s)).concat([{ $count: 'total' }]);
+        const [transactionsArr, totalArr] = await Promise.all([
+            coll.aggregate(pipeline).toArray(),
+            coll.aggregate(countPipeline).toArray()
         ]);
+        const transactions = transactionsArr;
+        const total = totalArr[0]?.total || 0;
 
         res.status(200).json({ success: true, count: total, data: transactions });
     } catch (error) {
@@ -154,6 +174,26 @@ exports.debugAge = async (req, res) => {
             { $match: { AgeNum: { $gte: min, $lte: max } } },
             { $facet: {
                 sample: [ { $limit: 5 }, { $project: { Age: 1, AgeNum: 1, CustomerName: 1, Gender: 1 } } ],
+                total: [ { $count: 'count' } ]
+            } }
+        ]).toArray();
+        const total = resArr[0]?.total?.[0]?.count || 0;
+        res.status(200).json({ success: true, total, sample: resArr[0]?.sample || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.debugDate = async (req, res) => {
+    try {
+        const coll = Transaction.collection;
+        const from = req.query.from ? new Date(req.query.from) : new Date('2023-01-01');
+        const to = req.query.to ? new Date(req.query.to) : new Date('2023-12-31');
+        const resArr = await coll.aggregate([
+            { $addFields: { DateConv: { $cond: [ { $eq: [ { $type: '$Date' }, 'string' ] }, { $dateFromString: { dateString: '$Date' } }, '$Date' ] } } },
+            { $match: { DateConv: { $gte: from, $lte: to } } },
+            { $facet: {
+                sample: [ { $limit: 5 }, { $project: { Date: 1, DateConv: 1, CustomerName: 1 } } ],
                 total: [ { $count: 'count' } ]
             } }
         ]).toArray();

@@ -12,6 +12,7 @@
 .ms-item { display: flex; align-items: center; gap: 8px; color: #111827; font-size: 13px; }
 .ms-actions { display: flex; justify-content: space-between; gap: 8px; padding: 8px; border-top: 1px solid #f3f4f6; }
 .btn.ghost { background: #f9fafb; border-color: #e5e7eb; color: #374151; }
+.range input[type="date"] { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
 .filters .range { display: flex; gap: 6px; }
 .error-box { border: 1px solid #ef4444; color: #b91c1c; background: #fee2e2; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
 .loading { padding: 24px; text-align: center; color: #6b7280; }

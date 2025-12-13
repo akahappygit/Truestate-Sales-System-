@@ -52,8 +52,8 @@ function App() {
   const [tags, setTags] = useState([]);
   const [ageMin, setAgeMin] = useState('');
   const [ageMax, setAgeMax] = useState('');
-  const [dateFrom] = useState('');
-  const [dateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const [meta, setMeta] = useState({ regions: [], genders: [], categories: [], paymentMethods: [], tags: [] });
 
@@ -66,14 +66,19 @@ function App() {
   const query = useMemo(() => {
     const p = new URLSearchParams();
     p.set('page', String(page));
-    const per = (ageMin || ageMax) ? 50 : perPage;
-    p.set('perPage', String(per));
+    p.set('perPage', String(perPage));
     if (search) p.set('search', search);
     if (region.length) p.set('region', region.join(','));
     if (gender.length) p.set('gender', gender.join(','));
     if (category.length) p.set('category', category.join(','));
     if (paymentMethod.length) p.set('paymentMethod', paymentMethod.join(','));
     if (tags.length) p.set('tags', tags.join(','));
+    if (ageMin && !ageMax) { p.set('ageMin', String(ageMin)); p.set('ageMax', String(ageMin)); }
+    else if (ageMax && !ageMin) { p.set('ageMin', String(ageMax)); p.set('ageMax', String(ageMax)); }
+    else {
+      if (ageMin) p.set('ageMin', String(ageMin));
+      if (ageMax) p.set('ageMax', String(ageMax));
+    }
     if (dateFrom) p.set('dateFrom', dateFrom);
     if (dateTo) p.set('dateTo', dateTo);
     p.set('sortBy', sortBy);
@@ -88,20 +93,9 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          let rows = data.data || [];
-          if (ageMin || ageMax) {
-            const min = ageMin ? parseInt(ageMin) : undefined;
-            const max = ageMax ? parseInt(ageMax) : undefined;
-            rows = rows.filter(r => {
-              const a = parseInt(v(r, ['Age']));
-              if (Number.isNaN(a)) return false;
-              if (min !== undefined && a < min) return false;
-              if (max !== undefined && a > max) return false;
-              return true;
-            });
-          }
+          const rows = data.data || [];
           setTransactions(rows);
-          setCount((ageMin || ageMax) ? rows.length : (data.count || rows.length || 0));
+          setCount(data.count || rows.length || 0);
         } else {
           setError('Failed to load data.');
         }
@@ -143,7 +137,11 @@ function App() {
         <MultiSelect label="Product Category" options={meta.categories} selected={category} onChange={setCategory} />
         <MultiSelect label="Tags" options={meta.tags} selected={tags} onChange={setTags} />
         <MultiSelect label="Payment Method" options={meta.paymentMethods} selected={paymentMethod} onChange={setPaymentMethod} />
-        <button className="btn" type="button" onClick={()=>{ setRegion([]); setGender([]); setCategory([]); setTags([]); setPaymentMethod([]); setAgeMin(''); setAgeMax(''); setPage(1); }}>Clear filters</button>
+        <div className="range">
+          <input type="date" value={dateFrom} onChange={(e)=>{ setDateFrom(e.target.value); setPage(1); }} />
+          <input type="date" value={dateTo} onChange={(e)=>{ setDateTo(e.target.value); setPage(1); }} />
+        </div>
+        <button className="btn" type="button" onClick={()=>{ setRegion([]); setGender([]); setCategory([]); setTags([]); setPaymentMethod([]); setAgeMin(''); setAgeMax(''); setDateFrom(''); setDateTo(''); setPage(1); }}>Clear filters</button>
         <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
           <option value="CustomerName">Sort by: Customer Name (A–Z)</option>
           <option value="Date">Sort by: Date</option>
