@@ -2,8 +2,9 @@
 .topbar { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .title { font-weight: 600; font-size: 20px; }
 .search { padding: 10px 12px; width: 320px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
-.filters { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; margin-bottom: 12px; }
-.filters select, .filters input { padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; align-items: center; }
+.filters > * { min-width: 0; }
+.filters select, .filters input { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
 .filters .range { display: flex; gap: 6px; }
 .error-box { border: 1px solid #ef4444; color: #b91c1c; background: #fee2e2; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
 .loading { padding: 24px; text-align: center; color: #6b7280; }

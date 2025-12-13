@@ -73,6 +73,12 @@ function App() {
   const v = (obj, keys) => keys.find(k => obj[k] !== undefined) ? obj[keys.find(k => obj[k] !== undefined)] : '';
 
   const totalPages = Math.max(1, Math.ceil(count / perPage));
+  const pageWindow = useMemo(() => {
+    const max = 10;
+    const start = Math.max(1, Math.min(page - Math.floor(max/2), Math.max(1, totalPages - (max - 1))));
+    const end = Math.min(totalPages, start + (max - 1));
+    return { start, end };
+  }, [page, totalPages]);
 
   return (
     <div className="container">
@@ -176,9 +182,12 @@ function App() {
       <div className="pagination">
         <button className="btn" disabled={page===1} onClick={()=>setPage(page-1)}>Prev</button>
         <div className="pages">
-          {Array.from({length: totalPages}).map((_,i)=> (
-            <button key={i} className={i+1===page? 'page active':'page'} onClick={()=>setPage(i+1)}>{i+1}</button>
-          ))}
+          {Array.from({length: pageWindow.end - pageWindow.start + 1}).map((_,i)=> {
+            const p = pageWindow.start + i;
+            return (
+              <button key={p} className={p===page? 'page active':'page'} onClick={()=>setPage(p)}>{p}</button>
+            );
+          })}
         </div>
         <button className="btn" disabled={page===totalPages} onClick={()=>setPage(page+1)}>Next</button>
       </div>
