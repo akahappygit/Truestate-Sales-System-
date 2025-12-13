@@ -66,15 +66,14 @@ function App() {
   const query = useMemo(() => {
     const p = new URLSearchParams();
     p.set('page', String(page));
-    p.set('perPage', String(perPage));
+    const per = (ageMin || ageMax) ? 50 : perPage;
+    p.set('perPage', String(per));
     if (search) p.set('search', search);
     if (region.length) p.set('region', region.join(','));
     if (gender.length) p.set('gender', gender.join(','));
     if (category.length) p.set('category', category.join(','));
     if (paymentMethod.length) p.set('paymentMethod', paymentMethod.join(','));
     if (tags.length) p.set('tags', tags.join(','));
-    if (ageMin) p.set('ageMin', String(ageMin));
-    if (ageMax) p.set('ageMax', String(ageMax));
     if (dateFrom) p.set('dateFrom', dateFrom);
     if (dateTo) p.set('dateTo', dateTo);
     p.set('sortBy', sortBy);
@@ -102,7 +101,7 @@ function App() {
             });
           }
           setTransactions(rows);
-          setCount(data.count || rows.length || 0);
+          setCount((ageMin || ageMax) ? rows.length : (data.count || rows.length || 0));
         } else {
           setError('Failed to load data.');
         }

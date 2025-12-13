@@ -45,8 +45,17 @@ exports.getAllTransactions = async (req, res) => {
         const r3 = orEq(['Payment Method','PaymentMethod'], paymentMethod); if (r3) and.push(r3);
         const r4 = orEq(['Product Category','ProductCategory'], category); if (r4) and.push(r4);
 
-        const minAge = ageMin ? parseInt(ageMin) : undefined;
-        const maxAge = ageMax ? parseInt(ageMax) : undefined;
+        if (ageMin || ageMax) {
+            const min = ageMin ? parseInt(ageMin) : 0;
+            const max = ageMax ? parseInt(ageMax) : 200;
+            const inVals = [];
+            for (let i = min; i <= max; i++) {
+                inVals.push(i);
+                inVals.push(String(i));
+                inVals.push(new RegExp(`^\\s*${i}\\s*$`, 'i'));
+            }
+            and.push({ Age: { $in: inVals } });
+        }
 
         if (tags) {
             const tagList = toList(tags);
@@ -71,38 +80,13 @@ exports.getAllTransactions = async (req, res) => {
 
         const pg = parseInt(page);
         const limit = parseInt(perPage);
-        const finalQueryOther = and.length ? { $and: and } : {};
+        const finalQuery = and.length ? { $and: and } : {};
         const coll = Transaction.collection;
-
-        let transactions, total;
-        if (minAge || maxAge) {
-            const parts = [
-                'var a = parseInt(this["Age"]);',
-                'if (isNaN(a)) { try { a = parseInt(this.Age); } catch(e) { a = NaN; } }',
-            ];
-            if (minAge) parts.push(`if (!(a >= ${minAge})) return false;`);
-            if (maxAge) parts.push(`if (!(a <= ${maxAge})) return false;`);
-            parts.push('return true;');
-            finalQueryOther.$where = parts.join(' ');
-            const cursor = coll.find(finalQueryOther).sort({ [sortField]: dir }).skip((pg - 1) * limit).limit(limit);
-            [transactions, total] = await Promise.all([
-                cursor.toArray(),
-                coll.countDocuments(finalQueryOther)
-            ]);
-        } else {
-            const pipeline = [];
-            if (Object.keys(finalQueryOther).length) pipeline.push({ $match: finalQueryOther });
-            pipeline.push({ $sort: { [sortField]: dir } });
-            pipeline.push({ $skip: (pg - 1) * limit });
-            pipeline.push({ $limit: limit });
-            const pipelineCount = pipeline.filter(s => !('$skip' in s) && !('$limit' in s) && !('$sort' in s)).concat([{ $count: 'total' }]);
-            const [transactionsArr, totalArr] = await Promise.all([
-                coll.aggregate(pipeline).toArray(),
-                coll.aggregate(pipelineCount).toArray()
-            ]);
-            total = totalArr[0]?.total || 0;
-            transactions = transactionsArr;
-        }
+        const cursor = coll.find(finalQuery).sort({ [sortField]: dir }).skip((pg - 1) * limit).limit(limit);
+        const [transactions, total] = await Promise.all([
+            cursor.toArray(),
+            coll.countDocuments(finalQuery)
+        ]);
 
         res.status(200).json({ success: true, count: total, data: transactions });
     } catch (error) {
@@ -155,6 +139,26 @@ exports.getMeta = async (req, res) => {
         const paymentMethods = uniq([...(paymentA||[]), ...(paymentB||[])]);
         const tags = uniq([...(tagsA||[])].flatMap(v => Array.isArray(v) ? v : String(v).split(',').map(t=>t.trim())));
         res.status(200).json({ success: true, data: { regions, genders: uniq(genders), categories, paymentMethods, tags } });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.debugAge = async (req, res) => {
+    try {
+        const coll = Transaction.collection;
+        const min = parseInt(req.query.min || '0');
+        const max = parseInt(req.query.max || '200');
+        const resArr = await coll.aggregate([
+            { $addFields: { AgeNum: { $toInt: { $ifNull: ['$Age', 0] } } } },
+            { $match: { AgeNum: { $gte: min, $lte: max } } },
+            { $facet: {
+                sample: [ { $limit: 5 }, { $project: { Age: 1, AgeNum: 1, CustomerName: 1, Gender: 1 } } ],
+                total: [ { $count: 'count' } ]
+            } }
+        ]).toArray();
+        const total = resArr[0]?.total?.[0]?.count || 0;
+        res.status(200).json({ success: true, total, sample: resArr[0]?.sample || [] });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
