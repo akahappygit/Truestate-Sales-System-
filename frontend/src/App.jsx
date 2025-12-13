@@ -89,8 +89,20 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setTransactions(data.data || []);
-          setCount(data.count || 0);
+          let rows = data.data || [];
+          if (ageMin || ageMax) {
+            const min = ageMin ? parseInt(ageMin) : undefined;
+            const max = ageMax ? parseInt(ageMax) : undefined;
+            rows = rows.filter(r => {
+              const a = parseInt(v(r, ['Age']));
+              if (Number.isNaN(a)) return false;
+              if (min !== undefined && a < min) return false;
+              if (max !== undefined && a > max) return false;
+              return true;
+            });
+          }
+          setTransactions(rows);
+          setCount(data.count || rows.length || 0);
         } else {
           setError('Failed to load data.');
         }
@@ -132,6 +144,7 @@ function App() {
         <MultiSelect label="Product Category" options={meta.categories} selected={category} onChange={setCategory} />
         <MultiSelect label="Tags" options={meta.tags} selected={tags} onChange={setTags} />
         <MultiSelect label="Payment Method" options={meta.paymentMethods} selected={paymentMethod} onChange={setPaymentMethod} />
+        <button className="btn" type="button" onClick={()=>{ setRegion([]); setGender([]); setCategory([]); setTags([]); setPaymentMethod([]); setAgeMin(''); setAgeMax(''); setPage(1); }}>Clear filters</button>
         <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
           <option value="CustomerName">Sort by: Customer Name (A–Z)</option>
           <option value="Date">Sort by: Date</option>

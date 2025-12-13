@@ -45,12 +45,8 @@ exports.getAllTransactions = async (req, res) => {
         const r3 = orEq(['Payment Method','PaymentMethod'], paymentMethod); if (r3) and.push(r3);
         const r4 = orEq(['Product Category','ProductCategory'], category); if (r4) and.push(r4);
 
-        if (ageMin || ageMax) {
-            const ageQuery = {};
-            if (ageMin) ageQuery.$gte = parseInt(ageMin);
-            if (ageMax) ageQuery.$lte = parseInt(ageMax);
-            and.push({ Age: ageQuery });
-        }
+        const minAge = ageMin ? parseInt(ageMin) : undefined;
+        const maxAge = ageMax ? parseInt(ageMax) : undefined;
 
         if (tags) {
             const tagList = toList(tags);
@@ -75,13 +71,38 @@ exports.getAllTransactions = async (req, res) => {
 
         const pg = parseInt(page);
         const limit = parseInt(perPage);
-        const finalQuery = and.length ? { $and: and } : {};
+        const finalQueryOther = and.length ? { $and: and } : {};
         const coll = Transaction.collection;
-        const cursor = coll.find(finalQuery).sort({ [sortField]: dir }).skip((pg - 1) * limit).limit(limit);
-        const [transactions, total] = await Promise.all([
-            cursor.toArray(),
-            coll.countDocuments(finalQuery)
-        ]);
+
+        let transactions, total;
+        if (minAge || maxAge) {
+            const parts = [
+                'var a = parseInt(this["Age"]);',
+                'if (isNaN(a)) { try { a = parseInt(this.Age); } catch(e) { a = NaN; } }',
+            ];
+            if (minAge) parts.push(`if (!(a >= ${minAge})) return false;`);
+            if (maxAge) parts.push(`if (!(a <= ${maxAge})) return false;`);
+            parts.push('return true;');
+            finalQueryOther.$where = parts.join(' ');
+            const cursor = coll.find(finalQueryOther).sort({ [sortField]: dir }).skip((pg - 1) * limit).limit(limit);
+            [transactions, total] = await Promise.all([
+                cursor.toArray(),
+                coll.countDocuments(finalQueryOther)
+            ]);
+        } else {
+            const pipeline = [];
+            if (Object.keys(finalQueryOther).length) pipeline.push({ $match: finalQueryOther });
+            pipeline.push({ $sort: { [sortField]: dir } });
+            pipeline.push({ $skip: (pg - 1) * limit });
+            pipeline.push({ $limit: limit });
+            const pipelineCount = pipeline.filter(s => !('$skip' in s) && !('$limit' in s) && !('$sort' in s)).concat([{ $count: 'total' }]);
+            const [transactionsArr, totalArr] = await Promise.all([
+                coll.aggregate(pipeline).toArray(),
+                coll.aggregate(pipelineCount).toArray()
+            ]);
+            total = totalArr[0]?.total || 0;
+            transactions = transactionsArr;
+        }
 
         res.status(200).json({ success: true, count: total, data: transactions });
     } catch (error) {
