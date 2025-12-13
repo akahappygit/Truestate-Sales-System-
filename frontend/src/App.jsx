@@ -1,6 +1,39 @@
 import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 
+function MultiSelect({ label, options, selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const toggle = (value) => {
+    const next = selected.includes(value)
+      ? selected.filter(v => v !== value)
+      : [...selected, value];
+    onChange(next);
+  };
+  return (
+    <div className="ms">
+      <button type="button" className="ms-trigger" onClick={() => setOpen(o => !o)}>
+        {label}{selected.length ? ` (${selected.length})` : ''}
+      </button>
+      {open && (
+        <div className="ms-menu">
+          <div className="ms-list">
+            {options.map(opt => (
+              <label key={opt} className="ms-item">
+                <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggle(opt)} />
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+          <div className="ms-actions">
+            <button type="button" className="btn" onClick={() => setOpen(false)}>Done</button>
+            <button type="button" className="btn ghost" onClick={() => onChange([])}>Clear</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [transactions, setTransactions] = useState([]);
   const [count, setCount] = useState(0);
@@ -19,8 +52,8 @@ function App() {
   const [tags, setTags] = useState([]);
   const [ageMin, setAgeMin] = useState('');
   const [ageMax, setAgeMax] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom] = useState('');
+  const [dateTo] = useState('');
 
   const [meta, setMeta] = useState({ regions: [], genders: [], categories: [], paymentMethods: [], tags: [] });
 
@@ -90,34 +123,15 @@ function App() {
       {error && <div className="error-box">{error}</div>}
 
       <div className="filters">
-        <select multiple value={region} onChange={setMulti(setRegion)}>
-          <option disabled>Customer Region</option>
-          {meta.regions.map(r => (<option key={r} value={r}>{r}</option>))}
-        </select>
-        <select multiple value={gender} onChange={setMulti(setGender)}>
-          <option disabled>Gender</option>
-          {meta.genders.map(g => (<option key={g} value={g}>{g}</option>))}
-        </select>
+        <MultiSelect label="Customer Region" options={meta.regions} selected={region} onChange={setRegion} />
+        <MultiSelect label="Gender" options={meta.genders} selected={gender} onChange={setGender} />
         <div className="range">
           <input type="number" placeholder="Age min" value={ageMin} onChange={(e)=>setAgeMin(e.target.value)} />
           <input type="number" placeholder="Age max" value={ageMax} onChange={(e)=>setAgeMax(e.target.value)} />
         </div>
-        <select multiple value={category} onChange={setMulti(setCategory)}>
-          <option disabled>Product Category</option>
-          {meta.categories.map(c => (<option key={c} value={c}>{c}</option>))}
-        </select>
-        <select multiple value={tags} onChange={setMulti(setTags)}>
-          <option disabled>Tags</option>
-          {meta.tags.map(t => (<option key={t} value={t}>{t}</option>))}
-        </select>
-        <select multiple value={paymentMethod} onChange={setMulti(setPaymentMethod)}>
-          <option disabled>Payment Method</option>
-          {meta.paymentMethods.map(p => (<option key={p} value={p}>{p}</option>))}
-        </select>
-        <div className="range">
-          <input type="date" value={dateFrom} onChange={(e)=>setDateFrom(e.target.value)} />
-          <input type="date" value={dateTo} onChange={(e)=>setDateTo(e.target.value)} />
-        </div>
+        <MultiSelect label="Product Category" options={meta.categories} selected={category} onChange={setCategory} />
+        <MultiSelect label="Tags" options={meta.tags} selected={tags} onChange={setTags} />
+        <MultiSelect label="Payment Method" options={meta.paymentMethods} selected={paymentMethod} onChange={setPaymentMethod} />
         <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
           <option value="CustomerName">Sort by: Customer Name (A–Z)</option>
           <option value="Date">Sort by: Date</option>
