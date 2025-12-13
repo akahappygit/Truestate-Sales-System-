@@ -1,74 +1,87 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
+/* eslint-disable no-console */
 const fs = require('fs');
-const csv = require('csv-parser');
 const path = require('path');
+const csv = require('csv-parser');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 const Transaction = require('../models/Transaction');
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kumarayushanand2003:Ayush2003@cluster0.ofklt18.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+dotenv.config();
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => {
-    console.error('❌ DB Connection Error:', err);
-    process.exit(1);
+const csvPath = path.join(__dirname, '..', '..', 'truestate_assignment_dataset.csv');
+
+async function parseCsv(filePath) {
+  return new Promise((resolve, reject) => {
+    const rows = [];
+
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (row) => {
+        try {
+          const record = {
+            transactionId: row['Transaction ID'],
+            date: row.Date ? new Date(row.Date) : null,
+            customerId: row['Customer ID'],
+            customerName: row['Customer Name'],
+            phoneNumber: row['Phone Number'],
+            gender: row.Gender,
+            age: row.Age ? Number(row.Age) : null,
+            customerRegion: row['Customer Region'],
+            customerType: row['Customer Type'],
+            productId: row['Product ID'],
+            productName: row['Product Name'],
+            brand: row.Brand,
+            productCategory: row['Product Category'],
+            tags: row.Tags
+              ? row.Tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+              : [],
+            quantity: row.Quantity ? Number(row.Quantity) : null,
+            pricePerUnit: row['Price per Unit'] ? Number(row['Price per Unit']) : null,
+            discountPercentage: row['Discount Percentage']
+              ? Number(row['Discount Percentage'])
+              : null,
+            totalAmount: row['Total Amount'] ? Number(row['Total Amount']) : null,
+            finalAmount: row['Final Amount'] ? Number(row['Final Amount']) : null,
+            paymentMethod: row['Payment Method'],
+            orderStatus: row['Order Status'],
+            deliveryType: row['Delivery Type'],
+            storeId: row['Store ID'],
+            storeLocation: row['Store Location'],
+            salespersonId: row['Salesperson ID'],
+            employeeName: row['Employee Name'],
+          };
+
+          rows.push(record);
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .on('end', () => resolve(rows))
+      .on('error', reject);
+  });
+}
+
+async function seed() {
+  if (!process.env.MONGO_URI) {
+    throw new Error('MONGO_URI is not defined');
+  }
+
+  await mongoose.connect(process.env.MONGO_URI);
+
+  const data = await parseCsv(csvPath);
+
+  await Transaction.deleteMany({});
+  await Transaction.insertMany(data);
+
+  console.log('✅ SUCCESS! Data Imported');
+}
+
+seed()
+  .catch((err) => {
+    console.error('Seeding failed:', err.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await mongoose.connection.close();
   });
 
-const results = [];
-const filePath = path.join(__dirname, '../../truestate_assignment_dataset.csv');
-
-console.log(`\n🚀 Starting Import from: ${filePath}`);
-
-fs.createReadStream(filePath)
-  .pipe(csv())
-  .on('data', (data) => {
-    results.push({
-      TransactionID: data['Transaction ID'] || '',
-      Date: new Date(data['Date']),
-      CustomerID: data['Customer ID'] || '',
-      CustomerName: data['Customer Name'] || '',
-      PhoneNumber: data['Phone Number'] || '',
-      Gender: data['Gender'] || '',
-      Age: data['Age'] ? parseInt(data['Age']) : null,
-      CustomerRegion: data['Customer Region'] || '',
-      CustomerType: data['Customer Type'] || '',
-      ProductID: data['Product ID'] || '',
-      ProductName: data['Product Name'] || '',
-      Brand: data['Brand'] || '',
-      ProductCategory: data['Product Category'] || '',
-      Tags: data['Tags'] ? data['Tags'].split(',').map(t => t.trim()) : [],
-      Quantity: data['Quantity'] ? parseInt(data['Quantity']) : 0,
-      PricePerUnit: data['Price per Unit'] ? parseFloat(data['Price per Unit']) : null,
-      DiscountPercentage: data['Discount Percentage'] ? parseFloat(data['Discount Percentage']) : null,
-      TotalAmount: data['Total Amount'] ? parseFloat(data['Total Amount']) : 0,
-      FinalAmount: data['Final Amount'] ? parseFloat(data['Final Amount']) : null,
-      PaymentMethod: data['Payment Method'] || '',
-      OrderStatus: data['Order Status'] || '',
-      DeliveryType: data['Delivery Type'] || '',
-      StoreID: data['Store ID'] || '',
-      StoreLocation: data['Store Location'] || '',
-      SalespersonID: data['Salesperson ID'] || '',
-      EmployeeName: data['Employee Name'] || '',
-    });
-  })
-  .on('end', async () => {
-    try {
-      console.log(`\nParsing complete! Found ${results.length} records.`);
-      console.log('Clearing existing data...');
-      await Transaction.deleteMany({});
-      console.log('Inserting new data into database...');
-      await Transaction.insertMany(results);
-      console.log('✅ SUCCESS! Data imported successfully.');
-      process.exit(0);
-    } catch (error) {
-      console.error('❌ Error inserting data:', error.message);
-      if (error.errors) {
-        console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
-      }
-      process.exit(1);
-    }
-  })
-  .on('error', (error) => {
-    console.error('❌ Error reading CSV file:', error);
-    process.exit(1);
-  });
