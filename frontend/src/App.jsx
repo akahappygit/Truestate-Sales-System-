@@ -57,8 +57,10 @@ function App() {
 
   const [meta, setMeta] = useState({ regions: [], genders: [], categories: [], paymentMethods: [], tags: [] });
 
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:5000';
+
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/transactions/meta')
+    fetch(`${API_BASE}/api/transactions/meta`)
       .then(r => r.json())
       .then(j => { if (j.success) setMeta(j.data); });
   }, []);
@@ -89,7 +91,7 @@ function App() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`http://127.0.0.1:5000/api/transactions?${query}`)
+    fetch(`${API_BASE}/api/transactions?${query}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
