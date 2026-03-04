@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import './App.css';
 
 function MultiSelect({ label, options, selected, onChange }) {
@@ -56,14 +56,27 @@ function App() {
   const [dateTo, setDateTo] = useState('');
 
   const [meta, setMeta] = useState({ regions: [], genders: [], categories: [], paymentMethods: [], tags: [] });
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:5000';
 
+  const fetchWithRetry = (url, opts = {}, retries = 3, delay = 2000) => {
+    return fetch(url, opts)
+      .then(res => res.ok ? res : Promise.reject(new Error(res.statusText)))
+      .catch(err => {
+        if (retries <= 0) return Promise.reject(err);
+        return new Promise(resolve => setTimeout(resolve, delay)).then(() =>
+          fetchWithRetry(url, opts, retries - 1, delay)
+        );
+      });
+  };
+
   useEffect(() => {
-    fetch(`${API_BASE}/api/transactions/meta`)
+    fetchWithRetry(`${API_BASE}/api/transactions/meta`)
       .then(r => r.json())
-      .then(j => { if (j.success) setMeta(j.data); });
-  }, []);
+      .then(j => { if (j.success) setMeta(j.data); })
+      .catch(() => {});
+  }, [API_BASE]);
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -88,12 +101,15 @@ function App() {
     return p.toString();
   }, [page, perPage, search, region, gender, category, paymentMethod, tags, ageMin, ageMax, dateFrom, dateTo, sortBy, sortDir]);
 
+  const reconnectRef = useRef(null);
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`${API_BASE}/api/transactions?${query}`)
+    fetchWithRetry(`${API_BASE}/api/transactions?${query}`)
       .then(res => res.json())
       .then(data => {
+        if (cancelled) return;
         if (data.success) {
           const rows = data.data || [];
           setTransactions(rows);
@@ -103,14 +119,62 @@ function App() {
         }
         setLoading(false);
       })
-      .catch(err => {
-        setError('Backend not reachable');
+      .catch(() => {
+        if (cancelled) return;
+        setError('Backend not reachable. Retrying…');
         setLoading(false);
+        if (reconnectRef.current) clearInterval(reconnectRef.current);
+        reconnectRef.current = setInterval(() => {
+          fetch(`${API_BASE}/health`)
+            .then(r => r.json())
+            .then(h => {
+              if (h.ok && h.backend === 'reachable') {
+                if (reconnectRef.current) clearInterval(reconnectRef.current);
+                reconnectRef.current = null;
+                setError(null);
+                setReconnectTrigger(t => t + 1);
+              }
+            })
+            .catch(() => {});
+        }, 4000);
       });
-  }, [query]);
+    return () => {
+      cancelled = true;
+      if (reconnectRef.current) clearInterval(reconnectRef.current);
+    };
+  }, [query, API_BASE, reconnectTrigger]);
 
   const setMulti = (setter) => (e) => setter(Array.from(e.target.selectedOptions).map(o => o.value));
   const v = (obj, keys) => keys.find(k => obj[k] !== undefined) ? obj[keys.find(k => obj[k] !== undefined)] : '';
+
+  const today = useMemo(() => new Date(), []);
+  const setDatePreset = (preset) => {
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+    let from = '';
+    let to = todayStr;
+    if (preset === 'last7') {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 6);
+      from = past.toISOString().slice(0, 10);
+    } else if (preset === 'last30') {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 29);
+      from = past.toISOString().slice(0, 10);
+    } else if (preset === 'thisMonth') {
+      from = `${y}-${m}-01`;
+    } else if (preset === 'thisYear') {
+      from = `${y}-01-01`;
+    } else if (preset === 'all') {
+      from = '';
+      to = '';
+    }
+    setDateFrom(from);
+    setDateTo(preset === 'all' ? '' : to);
+    setPage(1);
+  };
 
   const totalPages = Math.max(1, Math.ceil(count / perPage));
   const pageWindow = useMemo(() => {
@@ -139,22 +203,56 @@ function App() {
         <MultiSelect label="Product Category" options={meta.categories} selected={category} onChange={setCategory} />
         <MultiSelect label="Tags" options={meta.tags} selected={tags} onChange={setTags} />
         <MultiSelect label="Payment Method" options={meta.paymentMethods} selected={paymentMethod} onChange={setPaymentMethod} />
-        <div className="range range-date">
-          <span className="dd-label">dd-mm-yyyy</span>
-          <input type="date" value={dateFrom} onChange={(e)=>{ setDateFrom(e.target.value); setPage(1); }} />
-          <input type="date" value={dateTo} onChange={(e)=>{ setDateTo(e.target.value); setPage(1); }} />
+        <div className="date-range-block">
+          <span className="date-range-label">Date range</span>
+          <div className="date-range-inputs">
+            <label className="date-input-wrap">
+              <span className="date-input-label">From</span>
+              <input type="date" value={dateFrom} onChange={(e)=>{ setDateFrom(e.target.value); setPage(1); }} aria-label="Date from" />
+            </label>
+            <label className="date-input-wrap">
+              <span className="date-input-label">To</span>
+              <input type="date" value={dateTo} onChange={(e)=>{ setDateTo(e.target.value); setPage(1); }} aria-label="Date to" />
+            </label>
+          </div>
+          <div className="date-presets">
+            <button type="button" className="preset-btn" onClick={()=>setDatePreset('last7')}>Last 7 days</button>
+            <button type="button" className="preset-btn" onClick={()=>setDatePreset('last30')}>Last 30 days</button>
+            <button type="button" className="preset-btn" onClick={()=>setDatePreset('thisMonth')}>This month</button>
+            <button type="button" className="preset-btn" onClick={()=>setDatePreset('thisYear')}>This year</button>
+            <button type="button" className="preset-btn" onClick={()=>setDatePreset('all')}>All time</button>
+          </div>
+        </div>
+        <div className="sort-block">
+          <span className="sort-label">Sort by</span>
+          <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)} aria-label="Sort by">
+            <option value="Date">Date</option>
+            <option value="CustomerName">Customer name</option>
+            <option value="Quantity">Quantity</option>
+            <option value="TotalAmount">Total amount</option>
+          </select>
+          <select value={sortDir} onChange={(e)=>setSortDir(e.target.value)} aria-label="Order">
+            {sortBy === 'Date' && (
+              <>
+                <option value="desc">Newest first</option>
+                <option value="asc">Oldest first</option>
+              </>
+            )}
+            {sortBy === 'CustomerName' && (
+              <>
+                <option value="asc">A → Z</option>
+                <option value="desc">Z → A</option>
+              </>
+            )}
+            {(sortBy === 'Quantity' || sortBy === 'TotalAmount') && (
+              <>
+                <option value="desc">High → Low</option>
+                <option value="asc">Low → High</option>
+              </>
+            )}
+          </select>
         </div>
         <button className="btn clear-btn" type="button" onClick={()=>{ setRegion([]); setGender([]); setCategory([]); setTags([]); setPaymentMethod([]); setAgeMin(''); setAgeMax(''); setDateFrom(''); setDateTo(''); setPage(1); }}>Clear filters</button>
-        <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
-          <option value="CustomerName">Sort by: Customer Name (A–Z)</option>
-          <option value="Date">Sort by: Date</option>
-          <option value="Quantity">Sort by: Quantity</option>
-          <option value="TotalAmount">Sort by: Total Amount</option>
-        </select>
-        <select value={sortDir} onChange={(e)=>setSortDir(e.target.value)}>
-          <option value="asc">Asc</option>
-          <option value="desc">Desc</option>
-        </select>
       </div>
 
       {loading ? (
