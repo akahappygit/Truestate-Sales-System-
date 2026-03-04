@@ -5,7 +5,7 @@ Setup
 - Install: `npm install`
 
 Run
-- `npm run start` → http://localhost:5000
+- `npm run start` → (http://localhost:5173)
 
 Endpoints
 - `GET /api/transactions` list with filters
